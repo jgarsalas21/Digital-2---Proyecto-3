@@ -1,0 +1,29 @@
+/********************************************************************  LIBRERÍAS  *****************************************************************************/
+
+#include <Arduino.h>
+#include <BH1750.h>
+
+BH1750 lightMeter;
+
+/***********************************************************  DECALRACION DE  FUNCIONES    *****************************************************************************/
+
+// put function declarations here:
+int myFunction(int, int);
+
+/**********************************************************************  SETUP  *****************************************************************************/
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+  lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
+  Serial.println("Inicializando programa... >:3");
+}
+
+/**********************************************************************  LOOP  *****************************************************************************/
+void loop() {
+  float lux = lightMeter.readLightLevel();
+  Serial.print("Light = ");
+  Serial.println(lux);
+  Serial.print("lux");
+  delay(100);
+}
