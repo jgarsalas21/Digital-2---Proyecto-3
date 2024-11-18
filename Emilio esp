@@ -1,1 +1,88 @@
+#define VERSION "1.1"
 
+#include <arduino.h>
+#include <inttypes.h>
+#include <Wire.h>
+#include <lm75.h>
+TempI2C_LM75 termo = TempI2C_LM75(0x48,TempI2C_LM75::nine_bits);
+void setup()
+{
+Serial.begin(115200);
+Serial.println("Start");
+Serial.print("Actual temp ");
+Serial.print(termo.getTemp());
+Serial.println(" oC");
+delay(2000);
+}
+void loop()
+{
+Serial.print(termo.getTemp());
+Serial.println(" oC");
+delay(5000);
+}
+
+/*#include <arduino.h>
+#include <Wire.h>
+
+#define LM75B_ADDRESS 0x4C// Dirección I2C del sensor LM75B
+#define TEMP_REGISTER 0x00 // Registro de lectura de temperatura
+
+float readTemperature() {
+  Wire.beginTransmission(LM75B_ADDRESS);
+  Wire.write(TEMP_REGISTER);
+  Wire.endTransmission(false); // Pide lectura sin detener el bus
+
+  Serial.println(Wire.available());
+
+  Wire.requestFrom(LM75B_ADDRESS, 2);
+  
+  while (true){
+    Serial.print(Wire.available());
+  delay(1500);
+  }
+  
+
+  if (Wire.available() == 2) {
+    uint8_t msb = Wire.read(); // Byte más significativo
+    uint8_t lsb = Wire.read(); // Byte menos significativo
+
+    int16_t rawTemp = (msb << 8) | (lsb & 0xE0); // Combina los bits relevantes
+    rawTemp >>= 5; // Ajusta la posición para 11 bits (resolución de 0.125 °C)
+
+    return rawTemp * 0.125; // Convierte a °C
+  } else {
+    Serial.println("Error al leer la temperatura.");
+    return NAN; // Devuelve un valor no numérico en caso de error
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(); // Inicializa la comunicación I2C
+  Wire.setClock(100000);
+
+  // Verifica la conexión con el sensor
+  Wire.beginTransmission(LM75B_ADDRESS);
+  Wire.write(0x00);
+  
+  Serial.print(Wire.endTransmission(false));
+  delay(5000);
+
+  Wire.endTransmission(false);
+  if (Wire.endTransmission(false) == 0) {
+    Serial.println("LM75B detectado correctamente.");
+  } else {
+    Serial.println("Error: LM75B no detectado.");
+    while (1);
+  }
+  //Wire.endTransmission(true);
+}
+
+void loop() {
+  float temperature = readTemperature();
+  Serial.print("Temperatura: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+
+  delay(1000); // Espera 1 segundo antes de la siguiente lectura
+}*/
