@@ -1,29 +1,76 @@
-/********************************************************************  LIBRERÍAS  *****************************************************************************/
+/********************************************************************   LIBRERÍAS   *****************************************************************************/
+#include <Arduino.h>                            // Para hacer mi vida más fácil
+#include <Wire.h>                               // Comunicación I2C
+#include <Temperature_LM75_Derived.h>           // Si necesitas funciones adicionales para el LM75
 
-#include <Arduino.h>
-#include <BH1750.h>
+/********************************************************************   VARIABLES  *****************************************************************************/
 
-BH1750 lightMeter;
+// Configuración UART
+#define RXD2 16  // Pin RX del ESP32
+#define TXD2 17  // Pin TX del ESP32
+#define BAUD_RATE 115200
 
-/***********************************************************  DECALRACION DE  FUNCIONES    *****************************************************************************/
+// Configuración I2C
+#define LM75B_ADDRESS 0x4A  // Dirección predeterminada del LM75B
 
-// put function declarations here:
-int myFunction(int, int);
+/*******************************************************************  DECLARACIÓN DE FUNCIONES  ****************************************************************/
+float readTemperature();
 
-/**********************************************************************  SETUP  *****************************************************************************/
-
+/**********************************************************************    SETUP    ****************************************************************************/
 void setup() {
-  Serial.begin(115200);
-  Wire.begin();
-  lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
-  Serial.println("Inicializando programa... >:3");
+  // Inicializar UART
+  Serial.begin(BAUD_RATE);                                // UART principal para monitor serial
+  Serial2.begin(BAUD_RATE, SERIAL_8N1, RXD2, TXD2);       // UART para comunicación con STM32
+
+  // Inicializar I2C
+  Wire.begin();  // Inicia comunicación I2C
+  Serial.println("ESP32 listo para recibir comandos.");
 }
 
-/**********************************************************************  LOOP  *****************************************************************************/
+/**********************************************************************    LOOP    *****************************************************************************/
 void loop() {
-  float lux = lightMeter.readLightLevel();
-  Serial.print("Light = ");
-  Serial.println(lux);
-  Serial.print("lux");
-  delay(100);
+  // Comprobar si hay datos desde el STM32
+  int x = 1;
+  if (x == 1) {//
+    uint8_t command = Serial2.read(); // Leer comando del STM32
+
+    if (true) { // Si el comando es '1'
+      Serial.println("Comando recibido: Leer temperatura");
+
+      // Leer temperatura del sensor
+      float temperature = readTemperature();
+
+      // Enviar temperatura al STM32 como una cadena ASCII
+      String tempStr = String(temperature, 1) + "\n"; // Formatear como "25.4\n"
+      Serial2.print(tempStr);  // Enviar al STM32
+      Serial.println("Temperatura enviada al STM32: " + tempStr);
+    }
+  }
+
+  else {
+    Serial.println("No se leyó el comando ");
+  }
+}
+
+/******************************************************************* DEFINICIÓN DE FUNCIONES  ****************************************************************/
+float readTemperature() {
+  Wire.beginTransmission(LM75B_ADDRESS);
+  Wire.write(0x00);  // Señalar al registro de temperatura
+  Wire.endTransmission(false);
+
+  Wire.requestFrom(LM75B_ADDRESS, 1);  // Solicitar 2 bytes del sensor
+
+  if (Wire.available()) {
+    byte msb = Wire.read();
+    byte lsb = Wire.read();
+    float temperature = ((msb << 8) | (lsb & 0x80)) >> 7;  // Combinar bytes y ajustar
+    temperature *= 0.5;  // Resolución de 0.5°C
+
+    return temperature; // Devolver el valor de temperatura
+  }
+
+  // En caso de error, retornar un valor no válido
+  Serial.println("Error al leer el sensor LM75");
+  delay(1000);
+  return -127.0; // Valor de error estándar
 }
