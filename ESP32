@@ -1,76 +1,90 @@
-/********************************************************************   LIBRERÍAS   *****************************************************************************/
-#include <Arduino.h>                            // Para hacer mi vida más fácil
-#include <Wire.h>                               // Comunicación I2C
-#include <Temperature_LM75_Derived.h>           // Si necesitas funciones adicionales para el LM75
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_NeoPixel.h>
+#include <Temperature_LM75_Derived.h>
 
-/********************************************************************   VARIABLES  *****************************************************************************/
+#define SENSOR_ADDR 0x48 
+#define LED_PIN 32
+#define LED_COUNT 8
 
-// Configuración UART
-#define RXD2 16  // Pin RX del ESP32
-#define TXD2 17  // Pin TX del ESP32
-#define BAUD_RATE 115200
-
-// Configuración I2C
-#define LM75B_ADDRESS 0x4A  // Dirección predeterminada del LM75B
-
-/*******************************************************************  DECLARACIÓN DE FUNCIONES  ****************************************************************/
+void initSensor();
 float readTemperature();
+void lightSequence(float temp);
 
-/**********************************************************************    SETUP    ****************************************************************************/
+Adafruit_NeoPixel ledStrip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+uint8_t animationDelay = 50; 
+uint8_t colorR = 255;
+uint8_t colorG = 0;
+uint8_t colorB = 0;
+
 void setup() {
-  // Inicializar UART
-  Serial.begin(BAUD_RATE);                                // UART principal para monitor serial
-  Serial2.begin(BAUD_RATE, SERIAL_8N1, RXD2, TXD2);       // UART para comunicación con STM32
-
-  // Inicializar I2C
-  Wire.begin();  // Inicia comunicación I2C
-  Serial.println("ESP32 listo para recibir comandos.");
-}
-
-/**********************************************************************    LOOP    *****************************************************************************/
-void loop() {
-  // Comprobar si hay datos desde el STM32
-  int x = 1;
-  if (x == 1) {//
-    uint8_t command = Serial2.read(); // Leer comando del STM32
-
-    if (true) { // Si el comando es '1'
-      Serial.println("Comando recibido: Leer temperatura");
-
-      // Leer temperatura del sensor
-      float temperature = readTemperature();
-
-      // Enviar temperatura al STM32 como una cadena ASCII
-      String tempStr = String(temperature, 1) + "\n"; // Formatear como "25.4\n"
-      Serial2.print(tempStr);  // Enviar al STM32
-      Serial.println("Temperatura enviada al STM32: " + tempStr);
-    }
-  }
-
-  else {
-    Serial.println("No se leyó el comando ");
-  }
-}
-
-/******************************************************************* DEFINICIÓN DE FUNCIONES  ****************************************************************/
-float readTemperature() {
-  Wire.beginTransmission(LM75B_ADDRESS);
-  Wire.write(0x00);  // Señalar al registro de temperatura
-  Wire.endTransmission(false);
-
-  Wire.requestFrom(LM75B_ADDRESS, 1);  // Solicitar 2 bytes del sensor
-
-  if (Wire.available()) {
-    byte msb = Wire.read();
-    byte lsb = Wire.read();
-    float temperature = ((msb << 8) | (lsb & 0x80)) >> 7;  // Combinar bytes y ajustar
-    temperature *= 0.5;  // Resolución de 0.5°C
-
-    return temperature; // Devolver el valor de temperatura
-  }
-
-  // En caso de error, retornar un valor no válido
-  Serial.println("Error al leer el sensor LM75");
+  ledStrip.begin();
+  ledStrip.clear();
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+  Serial.begin(115200);
+  Wire.begin();
+  Serial.println("Initializing LM75 sensor");
   delay(1000);
-  return -127.0; // Valor de error estándar
+}
+
+void loop() {
+  delay(1000);
+  float currentTemp = readTemperature();
+  lightSequence(currentTemp);
+  Serial.print("Temperature: ");
+  delay(1000);
+  Serial.print(currentTemp);
+  Serial2.print(currentTemp);
+  Serial.println(" C");
+  delay(1000);
+}
+
+float readTemperature() {
+  Wire.beginTransmission(SENSOR_ADDR);
+  Wire.write(0x00);
+  Wire.endTransmission();
+  
+  Wire.requestFrom(SENSOR_ADDR, 2);
+
+  if (Wire.available() >= 2) {
+    int rawTemp = Wire.read() << 8 | Wire.read();
+    return rawTemp / 256.0;
+  } else {
+    Serial.println("Error reading temperature");
+    return -1000.0;
+  }
+}
+
+void lightSequence(float temp) {
+  if (temp <= 25) {
+    for (int i = 0; i < LED_COUNT; i++) {
+      ledStrip.setPixelColor(i, ledStrip.Color(0, 255, colorB));
+      ledStrip.show();
+      delay(animationDelay);
+    }
+    for (int i = 0; i < LED_COUNT; i++) {
+      ledStrip.setPixelColor(i, 0);
+    }
+    ledStrip.show();
+  } else if (temp == 26) {
+    for (int i = 0; i < LED_COUNT; i++) {
+      ledStrip.setPixelColor(i, ledStrip.Color(255, 255, colorB));
+      ledStrip.show();
+      delay(animationDelay);
+    }
+    for (int i = 0; i < LED_COUNT; i++) {
+      ledStrip.setPixelColor(i, 0);
+    }
+    ledStrip.show();
+  } else if (temp >= 27) {
+    for (int i = 0; i < LED_COUNT; i++) {
+      ledStrip.setPixelColor(i, ledStrip.Color(colorR, colorG, colorB));
+      ledStrip.show();
+      delay(animationDelay);
+    }
+    for (int i = 0; i < LED_COUNT; i++) {
+      ledStrip.setPixelColor(i, 0);
+    }
+    ledStrip.show();
+  }
 }
